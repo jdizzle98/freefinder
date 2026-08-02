@@ -1,18 +1,26 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ImageUpload from '@/components/post/ImageUpload';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/context/AuthContext';
 
 const categories = ['Furniture', 'Clothing', 'Electronics', 'Books', 'Other'];
 
 export default function PostPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,15 +49,6 @@ export default function PostPage() {
         const { data } = supabase.storage.from('listing-photos').getPublicUrl(path);
         return data.publicUrl;
       });
-
-      // Get the current user (assuming we have auth set up)
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
 
       // We need to get the user's location from the browser or ask them to pick on map.
       // For now, we'll use a default location (0,0) and let the user update it later via map.
@@ -96,6 +95,10 @@ export default function PostPage() {
       setLoading(false);
     }
   };
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
