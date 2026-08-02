@@ -1,6 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { signOut } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
@@ -9,7 +11,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await supabase.auth.signOut();
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
