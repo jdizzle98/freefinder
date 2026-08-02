@@ -51,6 +51,14 @@ export default function RegisterPage() {
 
       if (authError) throw authError;
 
+      if (!data.user) {
+        throw new Error('Could not create account. Please try again.');
+      }
+
+      if (data.user.identities && data.user.identities.length === 0) {
+        throw new Error('An account with this email already exists. Please sign in instead.');
+      }
+
       // Create user profile in the users table
       const { error: profileError } = await supabase.from('users').insert({
         id: data.user.id,
