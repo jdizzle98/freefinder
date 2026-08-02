@@ -1,3 +1,4 @@
+'use client';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -103,8 +104,6 @@ export default function ListingDetail() {
                 src={firstPhoto}
                 alt={listing.title}
                 fill
-                className="object-cover"
-                placeholder="blur"
               />
             ) : (
               <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
@@ -153,11 +152,10 @@ export default function ListingDetail() {
               </div>
               <div>
                 <span className="font-medium">Status:</span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  listing.status === 'available'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${listing.status === 'available'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-gray-100 text-gray-700'
+                  }`}>
                   {listing.status === 'available' ? 'Available' : 'Claimed'}
                 </span>
               </div>
