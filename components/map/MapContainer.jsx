@@ -17,7 +17,7 @@ export default function MapContainer() {
       container: mapContainerRef.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [-96, 37.8], // Starting position [lng, lat]
-      zoom: 3
+      zoom: 13
     });
 
     setMap(mapInstance);
@@ -72,16 +72,12 @@ export default function MapContainer() {
     // For simplicity, we'll create a new marker for each listing.
 
     // First, remove any existing markers
-    map.eachLayer((layer) => {
-      if (layer.type === 'symbol') {
-        map.removeLayer(layer);
-      }
-    });
-    map.eachSource((source) => {
-      if (source.type === 'geojson') {
-        map.removeSource(source);
-      }
-    });
+    if (map.getLayer('listings-points')) {
+      map.removeLayer('listings-points');
+    }
+    if (map.getSource('listings')) {
+      map.removeSource('listings');
+    }
 
     // Create a GeoJSON source for the listings
     const geojson = {
