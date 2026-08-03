@@ -15,6 +15,8 @@ export default function PostPage() {
   const [category, setCategory] = useState('');
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -22,10 +24,34 @@ export default function PostPage() {
     }
   }, [user, router]);
 
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      () => {
+        setLocationError('Location access is required to post a listing. Please enable location access and try again.');
+      }
+    );
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !description || !category || photos.length === 0) {
       alert('Please fill in all fields and add at least one photo');
+      return;
+    }
+
+    if (!location) {
+      alert(locationError || 'Still getting your location, please try again in a moment.');
       return;
     }
 
@@ -50,11 +76,7 @@ export default function PostPage() {
         return data.publicUrl;
       });
 
-      // We need to get the user's location from the browser or ask them to pick on map.
-      // For now, we'll use a default location (0,0) and let the user update it later via map.
-      // In a real app, we would ask the user to pick a location on the map.
-      const latitude = 0; // placeholder
-      const longitude = 0; // placeholder
+      const { latitude, longitude } = location;
 
       // Create the listing
       const { data: listingData, error: listingError } = await supabase
@@ -104,6 +126,11 @@ export default function PostPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Post a Free Item</h1>
+        {locationError && !location && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded" role="alert">
+            {locationError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">

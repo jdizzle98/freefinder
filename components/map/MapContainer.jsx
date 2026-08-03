@@ -1,9 +1,34 @@
 import mapboxgl from 'mapbox-gl';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import Link from 'next/link';
+import { Sofa, Shirt, Cpu, BookOpen, Tag, X, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 // You need to set your Mapbox access token from environment variables
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+// Pastel bubble color + minimal icon per listing category.
+const CATEGORY_STYLES = {
+  Furniture: { bgClass: 'bg-blue-200', icon: Sofa },
+  Clothing: { bgClass: 'bg-pink-200', icon: Shirt },
+  Electronics: { bgClass: 'bg-yellow-200', icon: Cpu },
+  Books: { bgClass: 'bg-green-200', icon: BookOpen },
+  Other: { bgClass: 'bg-purple-200', icon: Tag },
+};
+const DEFAULT_CATEGORY_STYLE = CATEGORY_STYLES.Other;
+
+function createMarkerElement(listing) {
+  const style = CATEGORY_STYLES[listing.category] || DEFAULT_CATEGORY_STYLE;
+  const iconMarkup = renderToStaticMarkup(
+    <style.icon className="h-4 w-4 text-gray-700" strokeWidth={2} />
+  );
+
+  const el = document.createElement('div');
+  el.className = `${style.bgClass} flex items-center justify-center h-9 w-9 rounded-full border-2 border-white shadow-md cursor-pointer`;
+  el.innerHTML = iconMarkup;
+  return el;
+}
 
 // Haversine distance between two lat/lng points, in miles.
 function haversineMiles(lat1, lon1, lat2, lon2) {
@@ -31,9 +56,11 @@ export default function MapContainer({
   timeFilter = 'any',
 }) {
   const mapContainerRef = useRef(null);
+  const markersRef = useRef([]);
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
+  const [selectedListing, setSelectedListing] = useState(null);
 
   const filteredListings = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -80,36 +107,6 @@ export default function MapContainer({
 
     setMap(mapInstance);
 
-    // Set up a popup when clicking on a marker. Registered once here (rather
-    // than in the effect below, which re-runs on every filter/search change)
-    // since Mapbox's layer-scoped events are matched by layer id at click
-    // time, not bound to a specific layer instance - re-registering them on
-    // every filter change would stack duplicate handlers and duplicate popups.
-    mapInstance.on('click', 'listings-points', (e) => {
-      const feature = e.features[0];
-      const popup = new mapboxgl.Popup()
-        .setLngLat(feature.geometry.coordinates)
-        .setHTML(`
-          <div class="w-64">
-            <h3 class="text-lg font-bold mb-2">${feature.properties.title}</h3>
-            ${feature.properties.photo_url ? `<img src="${feature.properties.photo_url}" alt="${feature.properties.title}" class="w-full h-48 object-cover rounded mb-2" />` : ''}
-            <p class="text-gray-600 mb-2">${feature.properties.description}</p>
-            <div class="flex items-center space-x-2 text-sm">
-              <span class="text-gray-500">👍 ${feature.properties.like_count}</span>
-            </div>
-          </div>
-        `)
-        .addTo(mapInstance);
-    });
-
-    // Change the cursor to a pointer when hovering over a marker
-    mapInstance.on('mouseenter', 'listings-points', () => {
-      mapInstance.getCanvas().style.cursor = 'pointer';
-    });
-    mapInstance.on('mouseleave', 'listings-points', () => {
-      mapInstance.getCanvas().style.cursor = '';
-    });
-
     // Get user's current location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -152,67 +149,75 @@ export default function MapContainer({
     return () => mapInstance.remove();
   }, []);
 
+  // Draw one custom marker per listing - a pastel, category-colored bubble
+  // with a minimal icon - and swap them out whenever the filtered set changes.
   useEffect(() => {
-    if (!map || listings.length === 0) return;
+    if (!map) return;
 
-    // Remove existing markers and popups
-    // Note: In a real app, you would use a source and layer for markers.
-    // For simplicity, we'll create a new marker for each listing.
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
 
-    // First, remove any existing markers
-    if (map.getLayer('listings-points')) {
-      map.removeLayer('listings-points');
-    }
-    if (map.getSource('listings')) {
-      map.removeSource('listings');
-    }
+    filteredListings.forEach((listing) => {
+      if (listing.latitude == null || listing.longitude == null) return;
 
-    // Create a GeoJSON source for the listings
-    const geojson = {
-      type: 'FeatureCollection',
-      features: filteredListings.map((listing) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [listing.longitude, listing.latitude]
-        },
-        properties: {
-          title: listing.title,
-          description: listing.description,
-          // We'll take the first photo if available
-          photo_url: listing.listing_photos[0]?.photo_url || null,
-          like_count: listing.likes?.length || 0,
-          id: listing.id
-        }
-      }))
+      const el = createMarkerElement(listing);
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSelectedListing(listing);
+      });
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([listing.longitude, listing.latitude])
+        .addTo(map);
+
+      markersRef.current.push(marker);
+    });
+
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
     };
+  }, [map, filteredListings]);
 
-    // Add the source and layer to the map
-    if (map.getSource('listings')) {
-      map.getSource('listings').setData(geojson);
-    } else {
-      map.addSource('listings', {
-        type: 'geojson',
-        data: geojson
-      });
-
-      map.addLayer({
-        id: 'listings-points',
-        type: 'circle',
-        source: 'listings',
-        paint: {
-          'circle-radius': 8,
-          'circle-color': '#007cbf',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
-        }
-      });
-    }
-  }, [map, listings, filteredListings]);
+  const selectedPhoto = selectedListing?.listing_photos?.[0]?.photo_url;
 
   return (
     <div>
       <div className="h-screen w-full" ref={mapContainerRef} />
+
+      {selectedListing && (
+        <div className="fixed inset-x-4 bottom-24 z-40 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-md sm:-translate-x-1/2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-2xl shadow-md overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setSelectedListing(null)}
+              aria-label="Close"
+              className="absolute top-2 right-2 z-10 flex items-center justify-center h-8 w-8 rounded-full bg-white/90 shadow hover:bg-gray-100"
+            >
+              <X className="h-4 w-4 text-gray-600" />
+            </button>
+
+            {selectedPhoto && (
+              <img
+                src={selectedPhoto}
+                alt={selectedListing.title}
+                className="w-full h-40 object-cover"
+              />
+            )}
+
+            <div className="p-4">
+              <h3 className="font-semibold text-gray-900 truncate">{selectedListing.title}</h3>
+              <Link
+                href={`/listings/${selectedListing.id}`}
+                className="mt-3 flex items-center justify-center gap-2 w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-green-700 transition-colors"
+              >
+                View details
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
