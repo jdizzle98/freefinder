@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function Navbar() {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleSignOut = async () => {
     try {
@@ -17,6 +18,10 @@ export default function Navbar() {
       console.error('Error signing out:', error);
     }
   };
+
+  if (pathname === '/') {
+    return null;
+  }
 
   return (
     <header className="bg-white shadow-md">

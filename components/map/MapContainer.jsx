@@ -1,15 +1,73 @@
 import mapboxgl from 'mapbox-gl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 // You need to set your Mapbox access token from environment variables
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-export default function MapContainer() {
+// Haversine distance between two lat/lng points, in miles.
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
+}
+
+const timeFilterThresholdMs = {
+  today: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+  month: 30 * 24 * 60 * 60 * 1000,
+};
+
+export default function MapContainer({
+  searchQuery = '',
+  distance = 50,
+  category = 'all',
+  timeFilter = 'any',
+}) {
   const mapContainerRef = useRef(null);
   const [map, setMap] = useState(null);
   const [listings, setListings] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
+
+  const filteredListings = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const now = Date.now();
+
+    return listings.filter((listing) => {
+      if (query) {
+        const haystack = `${listing.title || ''} ${listing.description || ''}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+
+      if (category !== 'all' && listing.category !== category) {
+        return false;
+      }
+
+      if (userLocation) {
+        const miles = haversineMiles(
+          userLocation[1],
+          userLocation[0],
+          listing.latitude,
+          listing.longitude
+        );
+        if (miles > distance) return false;
+      }
+
+      if (timeFilter !== 'any') {
+        const threshold = timeFilterThresholdMs[timeFilter];
+        const postedAt = new Date(listing.created_at).getTime();
+        if (Number.isFinite(threshold) && now - postedAt > threshold) return false;
+      }
+
+      return true;
+    });
+  }, [listings, searchQuery, category, distance, userLocation, timeFilter]);
 
   useEffect(() => {
     // Initialize the map
@@ -21,6 +79,36 @@ export default function MapContainer() {
     });
 
     setMap(mapInstance);
+
+    // Set up a popup when clicking on a marker. Registered once here (rather
+    // than in the effect below, which re-runs on every filter/search change)
+    // since Mapbox's layer-scoped events are matched by layer id at click
+    // time, not bound to a specific layer instance - re-registering them on
+    // every filter change would stack duplicate handlers and duplicate popups.
+    mapInstance.on('click', 'listings-points', (e) => {
+      const feature = e.features[0];
+      const popup = new mapboxgl.Popup()
+        .setLngLat(feature.geometry.coordinates)
+        .setHTML(`
+          <div class="w-64">
+            <h3 class="text-lg font-bold mb-2">${feature.properties.title}</h3>
+            ${feature.properties.photo_url ? `<img src="${feature.properties.photo_url}" alt="${feature.properties.title}" class="w-full h-48 object-cover rounded mb-2" />` : ''}
+            <p class="text-gray-600 mb-2">${feature.properties.description}</p>
+            <div class="flex items-center space-x-2 text-sm">
+              <span class="text-gray-500">👍 ${feature.properties.like_count}</span>
+            </div>
+          </div>
+        `)
+        .addTo(mapInstance);
+    });
+
+    // Change the cursor to a pointer when hovering over a marker
+    mapInstance.on('mouseenter', 'listings-points', () => {
+      mapInstance.getCanvas().style.cursor = 'pointer';
+    });
+    mapInstance.on('mouseleave', 'listings-points', () => {
+      mapInstance.getCanvas().style.cursor = '';
+    });
 
     // Get user's current location
     if (navigator.geolocation) {
@@ -82,7 +170,7 @@ export default function MapContainer() {
     // Create a GeoJSON source for the listings
     const geojson = {
       type: 'FeatureCollection',
-      features: listings.map((listing) => ({
+      features: filteredListings.map((listing) => ({
         type: 'Feature',
         geometry: {
           type: 'Point',
@@ -120,33 +208,7 @@ export default function MapContainer() {
         }
       });
     }
-
-    // Set up a popup when clicking on a marker
-    map.on('click', 'listings-points', (e) => {
-      const feature = e.features[0];
-      const popup = new mapboxgl.Popup()
-        .setLngLat(feature.geometry.coordinates)
-        .setHTML(`
-          <div class="w-64">
-            <h3 class="text-lg font-bold mb-2">${feature.properties.title}</h3>
-            ${feature.properties.photo_url ? `<img src="${feature.properties.photo_url}" alt="${feature.properties.title}" class="w-full h-48 object-cover rounded mb-2" />` : ''}
-            <p class="text-gray-600 mb-2">${feature.properties.description}</p>
-            <div class="flex items-center space-x-2 text-sm">
-              <span class="text-gray-500">👍 ${feature.properties.like_count}</span>
-            </div>
-          </div>
-        `)
-        .addTo(map);
-    });
-
-    // Change the cursor to a pointer when hovering over a marker
-    map.on('mouseenter', 'listings-points', () => {
-      map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'listings-points', () => {
-      map.getCanvas().style.cursor = '';
-    });
-  }, [map, listings]);
+  }, [map, listings, filteredListings]);
 
   return (
     <div>
