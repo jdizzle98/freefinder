@@ -1,6 +1,6 @@
 /**
  * Seed the Supabase database with realistic fake data for local/dev use:
- * 8 users, 20 listings (across all categories), listing photos, 30 likes,
+ * 8 users, 20 listings (across all categories), listing photos,
  * and 10 reviews, all centered around Orlando, FL.
  *
  * SAFETY
@@ -285,33 +285,6 @@ async function createFakePhotos(listings) {
   return photoCount;
 }
 
-async function createFakeLikes(users, listings) {
-  const seen = new Set();
-  const likeRows = [];
-
-  let attempts = 0;
-  while (likeRows.length < 30 && attempts < 500) {
-    attempts += 1;
-    const user = pick(users);
-    const listing = pick(listings);
-    const key = `${user.id}:${listing.id}`;
-
-    if (user.id === listing.ownerId) continue; // skip liking your own listing
-    if (seen.has(key)) continue;
-
-    seen.add(key);
-    likeRows.push({ user_id: user.id, listing_id: listing.id });
-  }
-
-  const { error } = await supabase.from('likes').insert(likeRows);
-
-  if (error) {
-    throw new Error(`Failed to create likes: ${error.message}`);
-  }
-
-  return likeRows.length;
-}
-
 async function createFakeReviews(users, listings) {
   const seen = new Set();
   const reviewRows = [];
@@ -357,9 +330,6 @@ async function main() {
   console.log('Seeding listing photos...');
   const photoCount = await createFakePhotos(listings);
 
-  console.log('Seeding likes...');
-  const likeCount = await createFakeLikes(users, listings);
-
   console.log('Seeding reviews...');
   const reviewCount = await createFakeReviews(users, listings);
 
@@ -367,7 +337,6 @@ async function main() {
   console.log(`  users:    ${users.length}`);
   console.log(`  listings: ${listings.length}`);
   console.log(`  photos:   ${photoCount}`);
-  console.log(`  likes:    ${likeCount}`);
   console.log(`  reviews:  ${reviewCount}`);
 }
 

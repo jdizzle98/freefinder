@@ -28,9 +28,6 @@ export default function ListingsPage() {
             listing_photos (
               photo_url
             ),
-            likes (
-              user_id
-            ),
             reviews (
               id,
               rating

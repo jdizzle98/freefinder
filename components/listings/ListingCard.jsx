@@ -8,7 +8,6 @@ export default function ListingCard({ listing }) {
   const [isHovered, setIsHovered] = useState(false);
 
   const firstPhoto = listing.listing_photos?.[0]?.photo_url || null;
-  const likeCount = listing.likes?.length || 0;
   const reviewCount = listing.reviews?.length || 0;
   const avgRating = listing.reviews?.reduce((acc, r) => acc + r.rating, 0) / reviewCount || 0;
 
@@ -36,24 +35,6 @@ export default function ListingCard({ listing }) {
           {/* Category Badge */}
           <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 text-xs rounded">
             {listing.category}
-          </div>
-          {/* Like Button (small, in corner) */}
-          <div className="absolute top-2 right-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent link navigation
-                // In a real app, we would toggle the like here
-                alert('Like functionality would go here');
-              }}
-              className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-            >
-              <svg className="h-4 w-4 text-gray-500 hover:text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.363l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-              <span className="ml-1 text-xs font-medium">{likeCount}</span>
-            </button>
           </div>
         </div>
 
@@ -85,7 +66,7 @@ export default function ListingCard({ listing }) {
           </div>
 
           {/* Footer with stats */}
-          <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
+          <div className="mt-3 flex items-center text-sm text-gray-500">
             <div className="flex items-center space-x-1">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -93,14 +74,6 @@ export default function ListingCard({ listing }) {
                 />
               </svg>
               <span>{reviewCount} reviews</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v1a2 2 0 002 2h2m2 2h4m-6 0h1.5a2 2 0 001.414-.586l1.293-1.293A2 2 0 0112.707 4H15a2 2 0 012 2v1a2 2 0 01-2 2z"
-                />
-              </svg>
-              <span>{likeCount} likes</span>
             </div>
           </div>
         </div>

@@ -149,14 +149,10 @@ export default function ProfilePage() {
 
           {/* Stats */}
           <div className="border-t border-gray-200">
-            <div className="grid grid-cols-3 py-4 text-center text-gray-600">
+            <div className="grid grid-cols-2 py-4 text-center text-gray-600">
               <div>
                 <p className="text-sm font-medium">{listings.length}</p>
                 <p className="text-xs">Listings</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">0</p>
-                <p className="text-xs">Likes Received</p>
               </div>
               <div>
                 <p className="text-sm font-medium">0</p>

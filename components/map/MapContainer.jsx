@@ -94,9 +94,6 @@ export default function MapContainer({
             <h3 class="text-lg font-bold mb-2">${feature.properties.title}</h3>
             ${feature.properties.photo_url ? `<img src="${feature.properties.photo_url}" alt="${feature.properties.title}" class="w-full h-48 object-cover rounded mb-2" />` : ''}
             <p class="text-gray-600 mb-2">${feature.properties.description}</p>
-            <div class="flex items-center space-x-2 text-sm">
-              <span class="text-gray-500">👍 ${feature.properties.like_count}</span>
-            </div>
           </div>
         `)
         .addTo(mapInstance);
@@ -181,7 +178,6 @@ export default function MapContainer({
           description: listing.description,
           // We'll take the first photo if available
           photo_url: listing.listing_photos[0]?.photo_url || null,
-          like_count: listing.likes?.length || 0,
           id: listing.id
         }
       }))

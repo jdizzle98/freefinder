@@ -6,7 +6,7 @@ A mobile-first web application that connects people who want to give away free i
 
 - **Geolocation Map View**: See free items near you on an interactive map
 - **Post Free Items**: Users can post items they want to give away
-- **Social Features**: Like, review, and message other users
+- **Social Features**: Review and message other users
 - **User Profiles**: Showcase your activity and reputation
 - **Real-time Messaging**: Communicate with other users instantly
 
@@ -95,10 +95,9 @@ A mobile-first web application that connects people who want to give away free i
 - Listings default to "available" status
 
 ### Interactions
-- **Like**: Users can like/unlike listings
 - **Review**: Users can leave star ratings and written comments
 - **Message**: Users can initiate direct conversations with posters
-- **Profile**: Users can view their posted items, likes, and reviews
+- **Profile**: Users can view their posted items and reviews
 
 ## Future Enhancements
 
